@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>t h e s t a t e o f t h e t e x t</title>
+<style>
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+#container {
+  width: 700px;
+  height: 700px;
+  border: 1px solid #000;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.word {
+  position: absolute;
+  font-size: 16px;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.05s linear;
+}
+
+.cover {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  height: 20px;
+}
+</style>
+</head>
+<body>
+<div id="container"></div>
+
+<script>
+const containerWidth = 700;
+const containerHeight = 700;
+const cols = 6;
+const rows = 3;
+
+// posizione centrata nel container
+const pos = (col,row) => ({
+  x: (containerWidth/cols)*col + (containerWidth/(2*cols)),
+  y: (containerHeight/rows)*row + (containerHeight/(2*rows))
+});
+
+const words = [
+  "capitalism","archives","gestures","until","labour","evaporates",
+  "bodies","perform","resistance","inside","regulated","attention",
+  "museum","simulates","conflict","while","value","circulates"
+];
+
+// parole da coprire (conflict esclusa)
+const coveredIndices = [1,2,3,4,8,9,10,11,13,15,16,17];
+
+// stati
+const stateA = [
+  "capitalism","archives","gestures","until","labour","evaporates",
+  "bodies","perform","resistance","inside","regulated","attention",
+  "museum","simulates","conflict","while","value","circulates"
+];
+
+const stateB1 = [
+  "capitalism","archives","gestures","until","labour","evaporates",
+  "bodies","perform","resistance","inside","regulated","attention",
+  "museum","simulates","conflict","while","value","circulates"
+];
+
+const stateB2 = [
+  "capitalism","simulates","resistance","while","attention","evaporates",
+  "bodies","perform","gestures","until","labour","circulates",
+  "museum","archives","conflict","inside","regulated","value"
+];
+
+const container = document.getElementById("container");
+const nodes = [];
+const covers = [];
+
+// crea canvas rumore con larghezza casuale
+function createNoiseCanvas(){
+  const width = 70 + Math.random()*40; // larghezza random 70-110px
+  const c = document.createElement("canvas");
+  c.width = width;
+  c.height = 200*Math.random();   // QUI SE METTI 20 VENGONO COPERTURE REGOLARI DI RUMORE
+  c.ctx = c.getContext("2d");
+  return c;
+}
+
+// genera rumore su canvas
+function drawNoise(c){
+  const ctx = c.ctx;
+  const imgData = ctx.createImageData(c.width,c.height);
+  for(let i=0;i<imgData.data.length;i+=8){
+    const v=Math.random()*255;
+    imgData.data[i]=v;
+    imgData.data[i+1]=v;
+    imgData.data[i+2]=v;
+    imgData.data[i+3]=800;
+  }
+  ctx.putImageData(imgData,0,0);
+}
+
+// crea parole e cover
+words.forEach((w,i)=>{
+  const row = Math.floor(i/cols);
+  const col = i%cols;
+
+  const span = document.createElement("span");
+  span.className="word";
+  span.textContent=w;
+  const p = pos(col,row);
+  span.style.left = p.x+"px";
+  span.style.top = p.y+"px";
+  container.appendChild(span);
+
+  let cover = null;
+  if(coveredIndices.includes(i)){
+    cover = createNoiseCanvas();
+    cover.className="cover";
+    cover.style.left = p.x + "px";
+    cover.style.top = p.y + "px";
+    container.appendChild(cover);
+    span.style.opacity = 0;
+    drawNoise(cover);
+  }
+
+  nodes.push({el: span, index:i});
+  covers.push(cover);
+});
+
+// animazione rumore continuo
+function animateNoise(){
+  covers.forEach(c=>{
+    if(!c) return;
+    drawNoise(c);
+  });
+  requestAnimationFrame(animateNoise);
+}
+
+// alternanza B1/B2
+let nextB = 1;
+
+// mostra parole
+function showState(state){
+  nodes.forEach(n=>{
+    const w = n.index;
+    const span = n.el;
+    const oldCover = covers[w];
+
+    // se stiamo mostrando lo stato A, ricreiamo il cover con rumore casuale
+    if(state===stateA && coveredIndices.includes(w)){
+      if(oldCover) oldCover.remove();
+      const newCover = createNoiseCanvas();
+      const p = {x: parseFloat(span.style.left), y: parseFloat(span.style.top)};
+      newCover.style.left = p.x + "px";
+      newCover.style.top = p.y + "px";
+      newCover.className="cover";
+      container.appendChild(newCover);
+      drawNoise(newCover);
+      covers[w]=newCover;
+      span.style.opacity = 0;
+    } else if(coveredIndices.includes(w)){
+      // stato B, parole visibili
+      span.style.opacity = 1;
+      if(oldCover) oldCover.style.opacity = 0;
+    } else {
+      span.style.opacity = 1;
+    }
+
+    // aggiorna testo
+    span.textContent = state[w];
+  });
+}
+
+// mouse entra: alternanza B1/B2
+container.addEventListener("mouseenter", ()=>{
+  if(nextB===1){
+    showState(stateB1);
+    nextB=2;
+  } else {
+    showState(stateB2);
+    nextB=1;
+  }
+});
+
+// mouse esce: sempre ritorno A coperto da rumore
+container.addEventListener("mouseleave", ()=>{
+  showState(stateA);
+});
+
+// inizializzazione
+showState(stateA);
+animateNoise();
+</script>
+</body>
+</html>
