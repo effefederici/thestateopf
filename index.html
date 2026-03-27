@@ -21,6 +21,7 @@ body {
   position: relative;
   overflow: hidden;
   cursor: pointer;
+  touch-action: none;
 }
 
 .word {
@@ -50,7 +51,6 @@ const containerHeight = 700;
 const cols = 6;
 const rows = 3;
 
-// posizione centrata nel container
 const pos = (col,row) => ({
   x: (containerWidth/cols)*col + (containerWidth/(2*cols)),
   y: (containerHeight/rows)*row + (containerHeight/(2*rows))
@@ -62,21 +62,11 @@ const words = [
   "museum","simulates","conflict","while","value","circulates"
 ];
 
-// parole da coprire (conflict esclusa)
 const coveredIndices = [1,2,3,4,8,9,10,11,13,15,16,17];
 
-// stati
-const stateA = [
-  "capitalism","archives","gestures","until","labour","evaporates",
-  "bodies","perform","resistance","inside","regulated","attention",
-  "museum","simulates","conflict","while","value","circulates"
-];
+const stateA = [...words];
 
-const stateB1 = [
-  "capitalism","archives","gestures","until","labour","evaporates",
-  "bodies","perform","resistance","inside","regulated","attention",
-  "museum","simulates","conflict","while","value","circulates"
-];
+const stateB1 = [...words];
 
 const stateB2 = [
   "capitalism","simulates","resistance","while","attention","evaporates",
@@ -88,31 +78,38 @@ const container = document.getElementById("container");
 const nodes = [];
 const covers = [];
 
-// crea canvas rumore con larghezza casuale
+let animateNoiseActive = true;
+
+// =====================
+// NOISE
+// =====================
 function createNoiseCanvas(){
-  const width = 70 + Math.random()*40; // larghezza random 70-110px
   const c = document.createElement("canvas");
-  c.width = width;
-  c.height = 200*Math.random();   // QUI SE METTI 20 VENGONO COPERTURE REGOLARI DI RUMORE
+  c.width = 70 + Math.random()*40;
+  c.height = 20 + Math.random()*30;
   c.ctx = c.getContext("2d");
+  c.img = c.ctx.createImageData(c.width, c.height);
   return c;
 }
 
-// genera rumore su canvas
 function drawNoise(c){
-  const ctx = c.ctx;
-  const imgData = ctx.createImageData(c.width,c.height);
-  for(let i=0;i<imgData.data.length;i+=8){
-    const v=Math.random()*255;
-    imgData.data[i]=v;
-    imgData.data[i+1]=v;
-    imgData.data[i+2]=v;
-    imgData.data[i+3]=800;
+  const data = c.img.data;
+
+  // pixel skipping (2x più veloce)
+  for(let i=0;i<data.length;i+=8){
+    const v = Math.random()*255;
+    data[i]=v;
+    data[i+1]=v;
+    data[i+2]=v;
+    data[i+3]=255;
   }
-  ctx.putImageData(imgData,0,0);
+
+  c.ctx.putImageData(c.img,0,0);
 }
 
-// crea parole e cover
+// =====================
+// CREAZIONE
+// =====================
 words.forEach((w,i)=>{
   const row = Math.floor(i/cols);
   const col = i%cols;
@@ -120,12 +117,15 @@ words.forEach((w,i)=>{
   const span = document.createElement("span");
   span.className="word";
   span.textContent=w;
+
   const p = pos(col,row);
   span.style.left = p.x+"px";
   span.style.top = p.y+"px";
+
   container.appendChild(span);
 
   let cover = null;
+
   if(coveredIndices.includes(i)){
     cover = createNoiseCanvas();
     cover.className="cover";
@@ -136,56 +136,75 @@ words.forEach((w,i)=>{
     drawNoise(cover);
   }
 
-  nodes.push({el: span, index:i});
+  nodes.push({el: span, index:i, x:p.x, y:p.y});
   covers.push(cover);
 });
 
-// animazione rumore continuo
+// =====================
+// ANIMAZIONE NOISE (OTTIMIZZATA)
+// =====================
+let frame = 0;
+
 function animateNoise(){
-  covers.forEach(c=>{
-    if(!c) return;
-    drawNoise(c);
-  });
+  frame++;
+
+  // aggiorna solo 1 frame su 2
+  if(frame % 2 === 0 && animateNoiseActive){
+    for(let i=0;i<covers.length;i++){
+      const c = covers[i];
+      if(c && c.style.opacity !== "0"){
+        drawNoise(c);
+      }
+    }
+  }
+
   requestAnimationFrame(animateNoise);
 }
 
-// alternanza B1/B2
+// =====================
+// STATE SWITCH
+// =====================
 let nextB = 1;
 
-// mostra parole
 function showState(state){
+  const isA = (state === stateA);
+
+  animateNoiseActive = isA;
+
   nodes.forEach(n=>{
     const w = n.index;
     const span = n.el;
-    const oldCover = covers[w];
+    let cover = covers[w];
 
-    // se stiamo mostrando lo stato A, ricreiamo il cover con rumore casuale
-    if(state===stateA && coveredIndices.includes(w)){
-      if(oldCover) oldCover.remove();
-      const newCover = createNoiseCanvas();
-      const p = {x: parseFloat(span.style.left), y: parseFloat(span.style.top)};
-      newCover.style.left = p.x + "px";
-      newCover.style.top = p.y + "px";
-      newCover.className="cover";
-      container.appendChild(newCover);
-      drawNoise(newCover);
-      covers[w]=newCover;
+    if(isA && coveredIndices.includes(w)){
+      if(!cover){
+        cover = createNoiseCanvas();
+        cover.className="cover";
+        cover.style.left = n.x + "px";
+        cover.style.top = n.y + "px";
+        container.appendChild(cover);
+        covers[w] = cover;
+      }
+
+      cover.style.opacity = 1;
       span.style.opacity = 0;
+      drawNoise(cover);
+
     } else if(coveredIndices.includes(w)){
-      // stato B, parole visibili
       span.style.opacity = 1;
-      if(oldCover) oldCover.style.opacity = 0;
+      if(cover) cover.style.opacity = 0;
     } else {
       span.style.opacity = 1;
     }
 
-    // aggiorna testo
     span.textContent = state[w];
   });
 }
 
-// mouse entra: alternanza B1/B2
-container.addEventListener("mouseenter", ()=>{
+// =====================
+// INTERAZIONE (POINTER SAFE)
+// =====================
+container.addEventListener("pointerenter", ()=>{
   if(nextB===1){
     showState(stateB1);
     nextB=2;
@@ -195,14 +214,16 @@ container.addEventListener("mouseenter", ()=>{
   }
 });
 
-// mouse esce: sempre ritorno A coperto da rumore
-container.addEventListener("mouseleave", ()=>{
+container.addEventListener("pointerleave", ()=>{
   showState(stateA);
 });
 
-// inizializzazione
+// =====================
+// INIT
+// =====================
 showState(stateA);
 animateNoise();
 </script>
+
 </body>
 </html>
