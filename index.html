@@ -179,38 +179,61 @@ function showState(state){
   });
 }
 
-// ===================== INTERAZIONE UNIFICATA =====================
+// ===================== DEVICE DETECTION =====================
+const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
 
-// Desktop: pointerenter/pointerleave come prima
-container.addEventListener("pointerenter", ()=>{
-  if(nextB===1){
-    showState(stateB1);
-    nextB=2;
-  } else {
-    showState(stateB2);
-    nextB=1;
-  }
-});
+// ===================== INTERAZIONI =====================
+if(!isTouchDevice){
 
-container.addEventListener("pointerleave", ()=>{
-  showState(stateA);
-});
+  // ===== DESKTOP =====
+  container.addEventListener("pointerenter", ()=>{
+    if(nextB===1){
+      showState(stateB1);
+      nextB=2;
+    } else {
+      showState(stateB2);
+      nextB=1;
+    }
+  });
 
-// Tablet/iPad: touchstart = pointerenter, touchend = pointerleave
-container.addEventListener("touchstart", e=>{
-  e.preventDefault();
-  if(nextB===1){
-    showState(stateB1);
-    nextB=2;
-  } else {
-    showState(stateB2);
-    nextB=1;
-  }
-}, {passive:false});
+  container.addEventListener("pointerleave", ()=>{
+    showState(stateA);
+  });
 
-container.addEventListener("touchend", e=>{
-  showState(stateA);
-}, {passive:false});
+} else {
+
+  // ===== TABLET / TOUCH =====
+  let isTouching = false;
+
+  container.addEventListener("touchstart", e=>{
+    e.preventDefault();
+
+    if(!isTouching){
+      isTouching = true;
+
+      if(nextB===1){
+        showState(stateB1);
+        nextB=2;
+      } else {
+        showState(stateB2);
+        nextB=1;
+      }
+    }
+
+  }, {passive:false});
+
+  container.addEventListener("touchend", e=>{
+    e.preventDefault();
+    isTouching = false;
+    showState(stateA);
+  }, {passive:false});
+
+  container.addEventListener("touchcancel", ()=>{
+    isTouching = false;
+    showState(stateA);
+  });
+
+}
 
 // ===================== INIT =====================
 showState(stateA);
