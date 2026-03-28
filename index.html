@@ -65,9 +65,7 @@ const words = [
 const coveredIndices = [1,2,3,4,8,9,10,11,13,15,16,17];
 
 const stateA = [...words];
-
 const stateB1 = [...words];
-
 const stateB2 = [
   "capitalism","simulates","resistance","while","attention","evaporates",
   "bodies","perform","gestures","until","labour","circulates",
@@ -77,12 +75,9 @@ const stateB2 = [
 const container = document.getElementById("container");
 const nodes = [];
 const covers = [];
-
 let animateNoiseActive = true;
 
-// =====================
-// NOISE
-// =====================
+// ===================== NOISE =====================
 function createNoiseCanvas(){
   const c = document.createElement("canvas");
   c.width = 70 + Math.random()*40;
@@ -94,8 +89,6 @@ function createNoiseCanvas(){
 
 function drawNoise(c){
   const data = c.img.data;
-
-  // pixel skipping (2x più veloce)
   for(let i=0;i<data.length;i+=8){
     const v = Math.random()*255;
     data[i]=v;
@@ -103,13 +96,10 @@ function drawNoise(c){
     data[i+2]=v;
     data[i+3]=255;
   }
-
   c.ctx.putImageData(c.img,0,0);
 }
 
-// =====================
-// CREAZIONE
-// =====================
+// ===================== CREAZIONE =====================
 words.forEach((w,i)=>{
   const row = Math.floor(i/cols);
   const col = i%cols;
@@ -125,7 +115,6 @@ words.forEach((w,i)=>{
   container.appendChild(span);
 
   let cover = null;
-
   if(coveredIndices.includes(i)){
     cover = createNoiseCanvas();
     cover.className="cover";
@@ -140,15 +129,10 @@ words.forEach((w,i)=>{
   covers.push(cover);
 });
 
-// =====================
-// ANIMAZIONE NOISE (OTTIMIZZATA)
-// =====================
+// ===================== ANIMAZIONE =====================
 let frame = 0;
-
 function animateNoise(){
   frame++;
-
-  // aggiorna solo 1 frame su 2
   if(frame % 2 === 0 && animateNoiseActive){
     for(let i=0;i<covers.length;i++){
       const c = covers[i];
@@ -157,18 +141,13 @@ function animateNoise(){
       }
     }
   }
-
   requestAnimationFrame(animateNoise);
 }
 
-// =====================
-// STATE SWITCH
-// =====================
+// ===================== STATE SWITCH =====================
 let nextB = 1;
-
 function showState(state){
   const isA = (state === stateA);
-
   animateNoiseActive = isA;
 
   nodes.forEach(n=>{
@@ -185,7 +164,6 @@ function showState(state){
         container.appendChild(cover);
         covers[w] = cover;
       }
-
       cover.style.opacity = 1;
       span.style.opacity = 0;
       drawNoise(cover);
@@ -201,9 +179,9 @@ function showState(state){
   });
 }
 
-// =====================
-// INTERAZIONE (POINTER SAFE)
-// =====================
+// ===================== INTERAZIONE UNIFICATA =====================
+
+// Desktop: pointerenter/pointerleave come prima
 container.addEventListener("pointerenter", ()=>{
   if(nextB===1){
     showState(stateB1);
@@ -218,12 +196,25 @@ container.addEventListener("pointerleave", ()=>{
   showState(stateA);
 });
 
-// =====================
-// INIT
-// =====================
+// Tablet/iPad: touchstart = pointerenter, touchend = pointerleave
+container.addEventListener("touchstart", e=>{
+  e.preventDefault();
+  if(nextB===1){
+    showState(stateB1);
+    nextB=2;
+  } else {
+    showState(stateB2);
+    nextB=1;
+  }
+}, {passive:false});
+
+container.addEventListener("touchend", e=>{
+  showState(stateA);
+}, {passive:false});
+
+// ===================== INIT =====================
 showState(stateA);
 animateNoise();
 </script>
-
 </body>
 </html>
