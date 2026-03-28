@@ -44,7 +44,6 @@ body {
 </head>
 <body>
 <div id="container"></div>
-
 <script>
 const containerWidth = 700;
 const containerHeight = 700;
@@ -75,8 +74,8 @@ const stateB2 = [
 const container = document.getElementById("container");
 const nodes = [];
 const covers = [];
+let nextB = 1; // alternanza B1/B2
 let animateNoiseActive = true;
-let nextB = 1;
 
 // ===================== NOISE =====================
 function createNoiseCanvas(){
@@ -92,10 +91,7 @@ function drawNoise(c){
   const data = c.img.data;
   for(let i=0;i<data.length;i+=8){
     const v = Math.random()*255;
-    data[i]=v;
-    data[i+1]=v;
-    data[i+2]=v;
-    data[i+3]=255;
+    data[i]=v; data[i+1]=v; data[i+2]=v; data[i+3]=255;
   }
   c.ctx.putImageData(c.img,0,0);
 }
@@ -119,8 +115,8 @@ words.forEach((w,i)=>{
   if(coveredIndices.includes(i)){
     cover = createNoiseCanvas();
     cover.className="cover";
-    cover.style.left = p.x + "px";
-    cover.style.top = p.y + "px";
+    cover.style.left = p.x+"px";
+    cover.style.top = p.y+"px";
     container.appendChild(cover);
     span.style.opacity = 0;
     drawNoise(cover);
@@ -131,13 +127,11 @@ words.forEach((w,i)=>{
 });
 
 // ===================== ANIMAZIONE =====================
-let frame = 0;
 function animateNoise(){
-  frame++;
-  if(frame % 2 === 0 && animateNoiseActive){
+  if(animateNoiseActive){
     for(let i=0;i<covers.length;i++){
       const c = covers[i];
-      if(c && c.style.opacity !== "0"){
+      if(c && c.style.opacity!=="0"){
         drawNoise(c);
       }
     }
@@ -145,14 +139,14 @@ function animateNoise(){
   requestAnimationFrame(animateNoise);
 }
 
-// ===================== STATE SWITCH =====================
+// ===================== MOSTRA STATO =====================
 function showState(state){
   nodes.forEach(n=>{
-    const w = n.index;
+    const idx = n.index;
     const span = n.el;
-    let cover = covers[w];
+    const cover = covers[idx];
 
-    if(coveredIndices.includes(w)){
+    if(coveredIndices.includes(idx)){
       if(state === stateA){
         span.style.opacity = 1;
         if(cover) cover.style.opacity = 0;
@@ -163,56 +157,52 @@ function showState(state){
     } else {
       span.style.opacity = 1;
     }
-
-    span.textContent = state[w];
+    span.textContent = state[idx];
   });
 }
 
 // ===================== INTERAZIONE =====================
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+function touchOrMouseStart(){
+  // primo stato sempre A
+  showState(stateA);
+  animateNoiseActive = false; // spegne rumore
+}
+
+function touchOrMouseEnd(){
+  // alterna B1/B2 e riaccende rumore
+  if(nextB===1){
+    showState(stateB1);
+    nextB=2;
+  } else {
+    showState(stateB2);
+    nextB=1;
+  }
+  animateNoiseActive = true;
+}
+
 if(isMobile){
-  // touchstart mostra sempre lo stato A
   container.addEventListener("touchstart", e=>{
     e.preventDefault();
-    showState(stateA);
-    animateNoiseActive = false; // spegne il rumore mentre tocchi
+    touchOrMouseStart();
   }, {passive:false});
 
-  // touchend alterna lo stato B con rumore attivo
   container.addEventListener("touchend", e=>{
     e.preventDefault();
-    if(nextB===1){
-      showState(stateB1);
-      nextB = 2;
-    } else {
-      showState(stateB2);
-      nextB = 1;
-    }
-    animateNoiseActive = true;
+    touchOrMouseEnd();
   }, {passive:false});
-
 } else {
-  // desktop: pointer enter/leave
-  container.addEventListener("pointerenter", ()=>{
-    if(nextB===1){
-      showState(stateB1);
-      nextB=2;
-    } else {
-      showState(stateB2);
-      nextB=1;
-    }
-    animateNoiseActive = false; // rumore spento mentre il mouse è dentro
+  container.addEventListener("pointerenter", e=>{
+    touchOrMouseStart();
   });
 
-  container.addEventListener("pointerleave", ()=>{
-    showState(stateA);
-    animateNoiseActive = true; // rumore attivo
+  container.addEventListener("pointerleave", e=>{
+    touchOrMouseEnd();
   });
 }
 
 // ===================== INIT =====================
-showState(stateA);
 animateNoise();
 </script>
 </body>
