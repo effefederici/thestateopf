@@ -76,6 +76,7 @@ const container = document.getElementById("container");
 const nodes = [];
 const covers = [];
 let animateNoiseActive = true;
+let nextB = 1;
 
 // ===================== NOISE =====================
 function createNoiseCanvas(){
@@ -145,32 +146,20 @@ function animateNoise(){
 }
 
 // ===================== STATE SWITCH =====================
-let nextB = 1;
 function showState(state){
-  const isA = (state === stateA);
-  animateNoiseActive = isA;
-
   nodes.forEach(n=>{
     const w = n.index;
     const span = n.el;
     let cover = covers[w];
 
-    if(isA && coveredIndices.includes(w)){
-      if(!cover){
-        cover = createNoiseCanvas();
-        cover.className="cover";
-        cover.style.left = n.x + "px";
-        cover.style.top = n.y + "px";
-        container.appendChild(cover);
-        covers[w] = cover;
+    if(coveredIndices.includes(w)){
+      if(state === stateA){
+        span.style.opacity = 1;
+        if(cover) cover.style.opacity = 0;
+      } else {
+        span.style.opacity = 1;
+        if(cover) cover.style.opacity = 0;
       }
-      cover.style.opacity = 1;
-      span.style.opacity = 0;
-      drawNoise(cover);
-
-    } else if(coveredIndices.includes(w)){
-      span.style.opacity = 1;
-      if(cover) cover.style.opacity = 0;
     } else {
       span.style.opacity = 1;
     }
@@ -179,21 +168,32 @@ function showState(state){
   });
 }
 
-// ===================== INTERAZIONE UNIFICATA =====================
+// ===================== INTERAZIONE =====================
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 if(isMobile){
+  // touchstart mostra sempre lo stato A
   container.addEventListener("touchstart", e=>{
+    e.preventDefault();
+    showState(stateA);
+    animateNoiseActive = false; // spegne il rumore mentre tocchi
+  }, {passive:false});
+
+  // touchend alterna lo stato B con rumore attivo
+  container.addEventListener("touchend", e=>{
     e.preventDefault();
     if(nextB===1){
       showState(stateB1);
-      nextB=2;
+      nextB = 2;
     } else {
       showState(stateB2);
-      nextB=1;
+      nextB = 1;
     }
+    animateNoiseActive = true;
   }, {passive:false});
+
 } else {
+  // desktop: pointer enter/leave
   container.addEventListener("pointerenter", ()=>{
     if(nextB===1){
       showState(stateB1);
@@ -202,23 +202,14 @@ if(isMobile){
       showState(stateB2);
       nextB=1;
     }
+    animateNoiseActive = false; // rumore spento mentre il mouse è dentro
   });
 
   container.addEventListener("pointerleave", ()=>{
     showState(stateA);
+    animateNoiseActive = true; // rumore attivo
   });
 }
-
-// Optional: click alternation for both mobile and desktop
-container.addEventListener("click", ()=>{
-  if(nextB===1){
-    showState(stateB1);
-    nextB=2;
-  } else {
-    showState(stateB2);
-    nextB=1;
-  }
-});
 
 // ===================== INIT =====================
 showState(stateA);
